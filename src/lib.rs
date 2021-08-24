@@ -6,38 +6,56 @@ use proto::fileformat::{Blob,BlobHeader};
 
 type Error = Box<dyn std::error::Error+Send+Sync+'static>;
 
-pub struct OsmPbfDenormalize<F: Read+Seek> {
+pub struct OsmPbfDenormalize<F: Read+Seek+GetLen> {
   handle: Box<F>,
 }
 
-impl<F> OsmPbfDenormalize<F> where F: Read+Seek {
+pub trait GetLen {
+  fn get_len(&self) -> Result<u64,Error>;
+}
+impl GetLen for std::fs::File {
+  fn get_len(&self) -> Result<u64,Error> {
+    Ok(self.metadata()?.len())
+  }
+}
+
+impl<F> OsmPbfDenormalize<F> where F: Read+Seek+GetLen {
   pub fn open(handle: Box<F>) -> Self {
     Self { handle }
   }
   pub fn scan(&mut self) -> Result<(),Error> {
-    self.handle.seek(SeekFrom::Start(0))?;
+    let mut offset = 0;
+    let file_size = self.handle.get_len()?;
+    while offset < file_size {
+      let (len,blob_header,blob) = self.read_fileblock(offset)?;
+      println!["{}..{}", offset, offset+len];
+      println!["  {:?}", &blob_header];
+      //println!["  {:?}", &blob];
+      offset += len;
+    }
     Ok(())
   }
-  pub fn read_header(&mut self) -> Result<BlobHeader,Error> {
-    let mut len_buf = [0,0,0,0];
-    self.handle.seek(SeekFrom::Start(0))?;
-    let n = self.handle.read(&mut len_buf)?;
-    if n != 4 { panic!["{} != 4", n] }
-    let len = u32::from_be_bytes(len_buf) as usize;
-    self.handle.seek(SeekFrom::Start(4))?;
-    let mut buf = vec![0u8;len];
-    let n = self.handle.read(&mut buf)?;
-    if n != len { panic!["not enough bytes read. expected {}, got {}", len, n] }
-    let mut reader = Reader::from_bytes(buf);
-    let blob_header = reader.read(BlobHeader::from_reader)?;
-    Ok(blob_header)
+  pub fn read_fileblock(&mut self, offset: u64) -> Result<(u64,BlobHeader,Blob),Error> {
+    let (s,blob_header) = self.read_blob_header(offset)?;
+    let blob = self.read_blob(offset + s, blob_header.datasize as usize)?;
+    Ok((s + blob_header.datasize as u64, blob_header, blob))
   }
-  pub fn read_blob(&mut self, offset: u64) -> Result<Blob,Error> {
+  pub fn read_blob_header(&mut self, offset: u64) -> Result<(u64,BlobHeader),Error> {
     let mut len_buf = [0,0,0,0];
     self.handle.seek(SeekFrom::Start(offset))?;
     let n = self.handle.read(&mut len_buf)?;
     if n != 4 { panic!["{} != 4", n] }
     let len = u32::from_be_bytes(len_buf) as usize;
+    self.handle.seek(SeekFrom::Start(offset+4))?;
+    let mut buf = vec![0u8;len];
+    let n = self.handle.read(&mut buf)?;
+    if n != len { panic!["not enough bytes read. expected {}, got {}", len, n] }
+    let mut reader = Reader::from_bytes(buf);
+    let blob_header = reader.read(BlobHeader::from_reader)?;
+    Ok(((len+4) as u64, blob_header))
+  }
+  pub fn read_blob(&mut self, offset: u64, len: usize) -> Result<Blob,Error> {
+    self.handle.seek(SeekFrom::Start(offset))?;
     let mut buf = vec![0u8;len];
     let n = self.handle.read(&mut buf)?;
     if n != len { panic!["not enough bytes read. expected {}, got {}", len, n] }
