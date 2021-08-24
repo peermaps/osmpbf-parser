@@ -2,6 +2,7 @@
 name = "osmpbf-denormalize"
 version = "0.1.0"
 edition = "2018"
+include = ["src/proto"]
 
 [dependencies]
 quick-protobuf = "0.8.0"
