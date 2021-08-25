@@ -47,6 +47,7 @@ impl PrimitiveBlock {
     let mut prev_uid = 0;
     let mut prev_user_sid = 0;
     let mut prev_ref = 0;
+    let mut prev_mem_id = 0;
     for g in self.primitivegroup.iter() {
       for node in g.nodes.iter() {
         elements.push(element::Element::Node(element::Node {
@@ -117,6 +118,28 @@ impl PrimitiveBlock {
           tags: self.tags(&way.keys, &way.vals),
           info: way.info.as_ref().map(|info| self.info(info)),
           refs,
+        }));
+      }
+      for relation in g.relations.iter() {
+        let mut members = vec![];
+        let z = relation.memids.iter().zip(relation.roles_sid.iter()).zip(relation.types.iter());
+        for ((mem_id,role_sid),mem_type) in z {
+          members.push(element::Member {
+            id: mem_id + prev_mem_id,
+            role: self.get_string(*role_sid as usize),
+            member_type: match mem_type {
+              proto::osmformat::mod_Relation::MemberType::NODE => element::MemberType::Node,
+              proto::osmformat::mod_Relation::MemberType::WAY => element::MemberType::Way,
+              proto::osmformat::mod_Relation::MemberType::RELATION => element::MemberType::Relation,
+            },
+          });
+          prev_mem_id = mem_id + prev_mem_id;
+        }
+        elements.push(element::Element::Relation(element::Relation {
+          id: relation.id,
+          tags: self.tags(&relation.keys, &relation.vals),
+          info: relation.info.as_ref().map(|info| self.info(info)),
+          members,
         }));
       }
     }
