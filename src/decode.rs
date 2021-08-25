@@ -75,6 +75,7 @@ impl PrimitiveBlock {
             ));
             tag_i += 2;
           }
+          tag_i += 1;
           let info = dense.denseinfo.as_ref().map(|info| {
             let timestamp = info.timestamp.get(info_i).map(|x| prev_timestamp+*x);
             let changeset = info.changeset.get(info_i).map(|x| prev_changeset+*x);
