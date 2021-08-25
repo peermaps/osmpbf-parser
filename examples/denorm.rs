@@ -12,12 +12,8 @@ fn main() -> Result<(),Error> {
   let mut opd = OsmPbfDenormalize::open(Box::new(h));
   let mut offset = 0;
   while offset < file_len {
-    let (len,_blob_header,blob) = opd.read_fileblock(offset)?;
-    if offset == 0 {
-      println!["{:?}", blob.decode_header()];
-    } else {
-      println!["{:?}", blob.decode_primitive()];
-    }
+    let (len,items) = opd.read(offset)?;
+    println!["{:?}", items];
     offset += len;
   }
   Ok(())
