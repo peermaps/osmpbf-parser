@@ -9,7 +9,7 @@ pub struct Scan<'a, F: Read+Seek> {
   nodes: IntervalTree<i64>,
   ways: IntervalTree<i64>,
   relations: IntervalTree<i64>,
-  interval_offsets: HashMap<(Bound<i64>,Bound<i64>),u64>,
+  interval_offsets: HashMap<(Bound<i64>,Bound<i64>),(u64,usize)>,
 }
 
 impl<'a,F> Scan<'a,F> where F: Read+Seek {
@@ -23,7 +23,15 @@ impl<'a,F> Scan<'a,F> where F: Read+Seek {
     };
     let mut offset = start;
     while offset < end {
-      let (len,items) = result.parser.read(offset)?;
+      let (blob_header_len,blob_header) = result.parser.read_blob_header(offset)?;
+      let blob = result.parser.read_blob(offset + blob_header_len, blob_header.datasize as usize)?;
+
+      let blob_offset = offset + blob_header_len;
+      let blob_len = blob_header.datasize as usize;
+      let len = blob_header_len + blob_len as u64;
+
+      let items = blob.decode_primitive()?.decode();
+
       let mut etype = element::MemberType::Node;
       let mut min_id = i64::MAX;
       let mut max_id = i64::MIN;
@@ -47,7 +55,7 @@ impl<'a,F> Scan<'a,F> where F: Read+Seek {
       }
       if !items.is_empty() {
         let iv = (Included(min_id),Included(max_id));
-        result.interval_offsets.insert(iv.clone(), offset);
+        result.interval_offsets.insert(iv.clone(), (blob_offset,blob_len));
         match etype {
           element::MemberType::Node => {
             result.nodes.insert(iv);
@@ -67,8 +75,9 @@ impl<'a,F> Scan<'a,F> where F: Read+Seek {
   pub fn get_node(&mut self, id: i64) -> Result<Option<element::Node>,Error> {
     let q = (Included(id),Included(id));
     for iv in self.nodes.get_interval_overlaps(&q).iter() {
-      if let Some(offset) = self.interval_offsets.get(&iv) {
-        let (_len,items) = self.parser.read(*offset)?;
+      if let Some((offset,len)) = self.interval_offsets.get(&iv) {
+        let blob = self.parser.read_blob(*offset,*len)?;
+        let items = blob.decode_primitive()?.decode();
         for item in items {
           match item {
             Element::Node(node) => {
@@ -84,8 +93,9 @@ impl<'a,F> Scan<'a,F> where F: Read+Seek {
   pub fn get_way(&mut self, id: i64) -> Result<Option<element::Way>,Error> {
     let q = (Included(id),Included(id));
     for iv in self.ways.get_interval_overlaps(&q).iter() {
-      if let Some(offset) = self.interval_offsets.get(&iv) {
-        let (_len,items) = self.parser.read(*offset)?;
+      if let Some((offset,len)) = self.interval_offsets.get(&iv) {
+        let blob = self.parser.read_blob(*offset,*len)?;
+        let items = blob.decode_primitive()?.decode();
         for item in items {
           match item {
             Element::Way(way) => {
@@ -101,8 +111,9 @@ impl<'a,F> Scan<'a,F> where F: Read+Seek {
   pub fn get_relation(&mut self, id: i64) -> Result<Option<element::Relation>,Error> {
     let q = (Included(id),Included(id));
     for iv in self.relations.get_interval_overlaps(&q).iter() {
-      if let Some(offset) = self.interval_offsets.get(&iv) {
-        let (_len,items) = self.parser.read(*offset)?;
+      if let Some((offset,len)) = self.interval_offsets.get(&iv) {
+        let blob = self.parser.read_blob(*offset,*len)?;
+        let items = blob.decode_primitive()?.decode();
         for item in items {
           match item {
             Element::Relation(relation) => {
