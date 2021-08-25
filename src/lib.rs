@@ -6,8 +6,10 @@ pub use proto::fileformat::{Blob,BlobHeader};
 mod decode;
 pub mod element;
 pub use element::{Element,Info,Node,Way,Relation,Member,MemberType};
+mod scan;
+pub use scan::Scan;
 
-type Error = Box<dyn std::error::Error+Send+Sync+'static>;
+pub type Error = Box<dyn std::error::Error+Send+Sync+'static>;
 
 pub struct OsmPbfDenormalize<F: Read+Seek> {
   handle: Box<F>,
