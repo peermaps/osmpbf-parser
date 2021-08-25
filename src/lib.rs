@@ -52,7 +52,7 @@ impl<F> OsmPbfDenormalize<F> where F: Read+Seek {
     if offset == 0 { // header
       Ok((len, vec![]))
     } else {
-      Ok((len, blob.decode_primitive()?))
+      Ok((len, blob.decode_primitive()?.decode()))
     }
   }
 }

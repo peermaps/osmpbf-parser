@@ -8,18 +8,17 @@ use crate::{element,Blob};
 type Error = Box<dyn std::error::Error+Send+Sync+'static>;
 
 impl Blob {
-  pub fn decode_header(&self) -> Result<(),Error> {
+  pub fn decode_header(&self) -> Result<HeaderBlock,Error> {
     let data = self.get_data()?;
     let header_block = Reader::from_bytes(data)
       .read(HeaderBlock::from_reader)?;
-    println!["header_block={:?}", &header_block];
-    Ok(())
+    Ok(header_block)
   }
-  pub fn decode_primitive(&self) -> Result<Vec<element::Element>,Error> {
+  pub fn decode_primitive(&self) -> Result<PrimitiveBlock,Error> {
     let data = self.get_data()?;
     let primitive_block = Reader::from_bytes(data)
       .read(PrimitiveBlock::from_reader)?;
-    Ok(primitive_block.decode())
+    Ok(primitive_block)
   }
   pub fn get_data(&self) -> Result<Vec<u8>,Error> {
     //if let Some(data) = &self.raw {
@@ -39,15 +38,6 @@ impl Blob {
 impl PrimitiveBlock {
   pub fn decode(&self) -> Vec<element::Element> {
     let mut elements = vec![];
-    let mut prev_id = 0;
-    let mut prev_lon = 0;
-    let mut prev_lat = 0;
-    let mut prev_timestamp = 0;
-    let mut prev_changeset = 0;
-    let mut prev_uid = 0;
-    let mut prev_user_sid = 0;
-    let mut prev_ref = 0;
-    let mut prev_mem_id = 0;
     for g in self.primitivegroup.iter() {
       for node in g.nodes.iter() {
         elements.push(element::Element::Node(element::Node {
@@ -59,6 +49,13 @@ impl PrimitiveBlock {
         }));
       }
       if let Some(dense) = &g.dense {
+        let mut prev_id = 0;
+        let mut prev_lon = 0;
+        let mut prev_lat = 0;
+        let mut prev_timestamp = 0;
+        let mut prev_changeset = 0;
+        let mut prev_uid = 0;
+        let mut prev_user_sid = 0;
         let mut tag_i = 0;
         let mut info_i = 0;
         let z = dense.id.iter().zip(dense.lon.iter().zip(dense.lat.iter()));
@@ -110,9 +107,11 @@ impl PrimitiveBlock {
       }
       for way in g.ways.iter() {
         let mut refs = vec![];
+        let mut prev_ref = 0;
         for r in way.refs.iter() {
-          refs.push(r + prev_ref);
-          prev_ref = r + prev_ref;
+          //refs.push(r + prev_ref);
+          refs.push(prev_ref + *r);
+          prev_ref += r;
         }
         elements.push(element::Element::Way(element::Way {
           id: way.id,
@@ -123,6 +122,7 @@ impl PrimitiveBlock {
       }
       for relation in g.relations.iter() {
         let mut members = vec![];
+        let mut prev_mem_id = 0;
         let z = relation.memids.iter().zip(relation.roles_sid.iter()).zip(relation.types.iter());
         for ((mem_id,role_sid),mem_type) in z {
           members.push(element::Member {

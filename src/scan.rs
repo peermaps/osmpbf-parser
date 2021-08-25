@@ -6,10 +6,10 @@ use std::io::{Read,Seek};
 
 pub struct Scan<'a, F: Read+Seek> {
   parser: &'a mut OsmPbfDenormalize<F>,
-  nodes: IntervalTree<u64>,
-  ways: IntervalTree<u64>,
-  relations: IntervalTree<u64>,
-  interval_offsets: HashMap<(Bound<u64>,Bound<u64>),u64>,
+  nodes: IntervalTree<i64>,
+  ways: IntervalTree<i64>,
+  relations: IntervalTree<i64>,
+  interval_offsets: HashMap<(Bound<i64>,Bound<i64>),u64>,
 }
 
 impl<'a,F> Scan<'a,F> where F: Read+Seek {
@@ -46,7 +46,7 @@ impl<'a,F> Scan<'a,F> where F: Read+Seek {
         }
       }
       if !items.is_empty() {
-        let iv = (Included(min_id as u64),Included(max_id as u64));
+        let iv = (Included(min_id),Included(max_id));
         result.interval_offsets.insert(iv.clone(), offset);
         match etype {
           element::MemberType::Node => {
@@ -64,7 +64,7 @@ impl<'a,F> Scan<'a,F> where F: Read+Seek {
     }
     Ok(result)
   }
-  pub fn get_node(&mut self, id: u64) -> Result<Option<element::Node>,Error> {
+  pub fn get_node(&mut self, id: i64) -> Result<Option<element::Node>,Error> {
     let q = (Included(id),Included(id));
     for iv in self.nodes.get_interval_overlaps(&q).iter() {
       if let Some(offset) = self.interval_offsets.get(&iv) {
@@ -72,7 +72,41 @@ impl<'a,F> Scan<'a,F> where F: Read+Seek {
         for item in items {
           match item {
             Element::Node(node) => {
-              if node.id as u64 == id { return Ok(Some(node)) }
+              if node.id == id { return Ok(Some(node)) }
+            },
+            _ => { break }
+          }
+        }
+      }
+    }
+    Ok(None)
+  }
+  pub fn get_way(&mut self, id: i64) -> Result<Option<element::Way>,Error> {
+    let q = (Included(id),Included(id));
+    for iv in self.ways.get_interval_overlaps(&q).iter() {
+      if let Some(offset) = self.interval_offsets.get(&iv) {
+        let (_len,items) = self.parser.read(*offset)?;
+        for item in items {
+          match item {
+            Element::Way(way) => {
+              if way.id == id { return Ok(Some(way)) }
+            },
+            _ => { break }
+          }
+        }
+      }
+    }
+    Ok(None)
+  }
+  pub fn get_relation(&mut self, id: i64) -> Result<Option<element::Relation>,Error> {
+    let q = (Included(id),Included(id));
+    for iv in self.relations.get_interval_overlaps(&q).iter() {
+      if let Some(offset) = self.interval_offsets.get(&iv) {
+        let (_len,items) = self.parser.read(*offset)?;
+        for item in items {
+          match item {
+            Element::Relation(relation) => {
+              if relation.id == id { return Ok(Some(relation)) }
             },
             _ => { break }
           }
