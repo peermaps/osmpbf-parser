@@ -1,11 +1,11 @@
-#![feature(generators,generator_trait,try_trait_v2)]
 use quick_protobuf::{MessageRead,Reader};
 use std::io::{Read,Seek,SeekFrom};
-use std::ops::Generator;
-//mod unfold;
 
 pub mod proto;
-use proto::fileformat::{Blob,BlobHeader};
+pub use proto::fileformat::{Blob,BlobHeader};
+mod decode;
+pub mod element;
+pub use element::{Element,Info,Node,Way,Relation,Member,MemberType};
 
 type Error = Box<dyn std::error::Error+Send+Sync+'static>;
 
@@ -33,29 +33,6 @@ impl TryClone for std::fs::File {
 impl<F> OsmPbfDenormalize<F> where F: Read+Seek+GetLen+TryClone {
   pub fn open(handle: Box<F>) -> Self {
     Self { handle }
-  }
-  pub fn scan(&mut self) -> impl Generator<
-    Yield=Result<(u64,u64,BlobHeader,Blob),Error>,
-    Return=()
-  > {
-    let mut handle = self.handle.try_clone().unwrap();
-    let mut offset = 0;
-    move || {
-      match handle.get_len() {
-        Err(e) => yield Err(e.into()),
-        Ok(file_size) => {
-          while offset < file_size {
-            match Self::read_fileblock_h(&mut handle, offset) {
-              Err(e) => yield Err(e.into()),
-              Ok((len,blob_header,blob)) => {
-                yield Ok((offset,offset+len,blob_header,blob));
-                offset += len;
-              },
-            }
-          }
-        },
-      };
-    }
   }
   pub fn read_fileblock(&mut self, offset: u64) -> Result<(u64,BlobHeader,Blob),Error> {
     Self::read_fileblock_h(&mut self.handle, offset)

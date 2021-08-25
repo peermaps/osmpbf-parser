@@ -5,4 +5,6 @@ edition = "2018"
 include = ["src/proto"]
 
 [dependencies]
+flate2 = "1.0.20"
+gen-iter = "0.2.0"
 quick-protobuf = "0.8.0"
