@@ -1,3 +1,4 @@
+use crate::proto;
 use crate::proto::osmformat::{HeaderBlock,PrimitiveBlock};
 use quick_protobuf::{MessageRead,Reader};
 use flate2::read::ZlibDecoder;
@@ -45,19 +46,13 @@ impl PrimitiveBlock {
     let mut prev_changeset = 0;
     let mut prev_uid = 0;
     let mut prev_user_sid = 0;
+    let mut prev_ref = 0;
     for g in self.primitivegroup.iter() {
       for node in g.nodes.iter() {
         elements.push(element::Element::Node(element::Node {
           id: node.id,
           tags: self.tags(&node.keys, &node.vals),
-          info: node.info.as_ref().map(|info| element::Info {
-            version: info.version,
-            timestamp: info.timestamp,
-            changeset: info.changeset,
-            uid: info.uid,
-            user: info.user_sid.map(|i| self.get_string(i as usize)),
-            visible: info.visible,
-          }),
+          info: node.info.as_ref().map(|info| self.info(info)),
           lon: (self.lon_offset + (self.granularity as i64 * node.lon)) as f64 * 1e-9,
           lat: (self.lat_offset + (self.granularity as i64 * node.lat)) as f64 * 1e-9,
         }));
@@ -111,6 +106,19 @@ impl PrimitiveBlock {
           prev_lat = lat;
         }
       }
+      for way in g.ways.iter() {
+        let mut refs = vec![];
+        for r in way.refs.iter() {
+          refs.push(r + prev_ref);
+          prev_ref = r + prev_ref;
+        }
+        elements.push(element::Element::Way(element::Way {
+          id: way.id,
+          tags: self.tags(&way.keys, &way.vals),
+          info: way.info.as_ref().map(|info| self.info(info)),
+          refs,
+        }));
+      }
     }
     elements
   }
@@ -120,6 +128,16 @@ impl PrimitiveBlock {
       let value = self.get_string(*vi as usize);
       (key, value)
     }).collect()
+  }
+  fn info(&self, info: &proto::osmformat::Info) -> element::Info {
+    element::Info {
+      version: info.version,
+      timestamp: info.timestamp,
+      changeset: info.changeset,
+      uid: info.uid,
+      user: info.user_sid.map(|i| self.get_string(i as usize)),
+      visible: info.visible,
+    }
   }
   pub fn get_string(&self, i: usize) -> String {
     let s = &self.stringtable.s[i];
