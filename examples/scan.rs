@@ -1,5 +1,5 @@
 use std::fs::File;
-use osmpbf_denormalize::OsmPbfDenormalize;
+use osmpbf_parser::{Parser,Scan};
 
 type Error = Box<dyn std::error::Error+Send+Sync+'static>;
 
@@ -7,8 +7,9 @@ fn main() -> Result<(),Error> {
   let args = std::env::args().collect::<Vec<String>>();
   let h = File::open(&args[1])?;
   let file_len = h.metadata()?.len();
-  let mut opd = OsmPbfDenormalize::open(Box::new(h));
-  let mut scan = opd.scan(0, file_len)?;
+  let parser = Parser::new(Box::new(h));
+  let mut scan = Scan::new(parser);
+  scan.scan(0, file_len)?;
   let start = std::time::Instant::now();
   /*
   let node_id = args[2].parse().unwrap();

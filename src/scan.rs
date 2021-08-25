@@ -1,30 +1,44 @@
 use std::collections::HashMap;
-use crate::{OsmPbfDenormalize,element,Element,Error};
+use crate::{Parser,element,Element,Error};
 use unbounded_interval_tree::IntervalTree;
 use std::ops::{Bound::Included,Bound};
 use std::io::{Read,Seek};
 
-pub struct Scan<'a, F: Read+Seek> {
-  parser: &'a mut OsmPbfDenormalize<F>,
+pub struct Scan<F: Read+Seek> {
+  pub parser: Parser<F>,
+  pub table: ScanTable,
+}
+
+#[derive(Debug,Clone)]
+pub struct ScanTable {
   nodes: IntervalTree<i64>,
   ways: IntervalTree<i64>,
   relations: IntervalTree<i64>,
   interval_offsets: HashMap<(Bound<i64>,Bound<i64>),(u64,usize)>,
 }
-
-impl<'a,F> Scan<'a,F> where F: Read+Seek {
-  pub fn scan(parser: &'a mut OsmPbfDenormalize<F>, start: u64, end: u64) -> Result<Self,Error> {
-    let mut result = Self {
-      parser,
+impl Default for ScanTable {
+  fn default() -> Self {
+    Self {
       nodes: IntervalTree::default(),
       ways: IntervalTree::default(),
       relations: IntervalTree::default(),
       interval_offsets: HashMap::new(),
-    };
+    }
+  }
+}
+
+impl<F> Scan<F> where F: Read+Seek {
+  pub fn new(parser: Parser<F>) -> Self {
+    Self {
+      parser,
+      table: ScanTable::default(),
+    }
+  }
+  pub fn scan(&mut self, start: u64, end: u64) -> Result<(),Error> {
     let mut offset = start;
     while offset < end {
-      let (blob_header_len,blob_header) = result.parser.read_blob_header(offset)?;
-      let blob = result.parser.read_blob(offset + blob_header_len, blob_header.datasize as usize)?;
+      let (blob_header_len,blob_header) = self.parser.read_blob_header(offset)?;
+      let blob = self.parser.read_blob(offset + blob_header_len, blob_header.datasize as usize)?;
 
       let blob_offset = offset + blob_header_len;
       let blob_len = blob_header.datasize as usize;
@@ -55,27 +69,27 @@ impl<'a,F> Scan<'a,F> where F: Read+Seek {
       }
       if !items.is_empty() {
         let iv = (Included(min_id),Included(max_id));
-        result.interval_offsets.insert(iv.clone(), (blob_offset,blob_len));
+        self.table.interval_offsets.insert(iv.clone(), (blob_offset,blob_len));
         match etype {
           element::MemberType::Node => {
-            result.nodes.insert(iv);
+            self.table.nodes.insert(iv);
           },
           element::MemberType::Way => {
-            result.ways.insert(iv);
+            self.table.ways.insert(iv);
           },
           element::MemberType::Relation => {
-            result.relations.insert(iv);
+            self.table.relations.insert(iv);
           },
         }
       }
       offset += len;
     }
-    Ok(result)
+    Ok(())
   }
   pub fn get_node(&mut self, id: i64) -> Result<Option<element::Node>,Error> {
     let q = (Included(id),Included(id));
-    for iv in self.nodes.get_interval_overlaps(&q).iter() {
-      if let Some((offset,len)) = self.interval_offsets.get(&iv) {
+    for iv in self.table.nodes.get_interval_overlaps(&q).iter() {
+      if let Some((offset,len)) = self.table.interval_offsets.get(&iv) {
         let blob = self.parser.read_blob(*offset,*len)?;
         let items = blob.decode_primitive()?.decode();
         for item in items {
@@ -92,8 +106,8 @@ impl<'a,F> Scan<'a,F> where F: Read+Seek {
   }
   pub fn get_way(&mut self, id: i64) -> Result<Option<element::Way>,Error> {
     let q = (Included(id),Included(id));
-    for iv in self.ways.get_interval_overlaps(&q).iter() {
-      if let Some((offset,len)) = self.interval_offsets.get(&iv) {
+    for iv in self.table.ways.get_interval_overlaps(&q).iter() {
+      if let Some((offset,len)) = self.table.interval_offsets.get(&iv) {
         let blob = self.parser.read_blob(*offset,*len)?;
         let items = blob.decode_primitive()?.decode();
         for item in items {
@@ -110,8 +124,8 @@ impl<'a,F> Scan<'a,F> where F: Read+Seek {
   }
   pub fn get_relation(&mut self, id: i64) -> Result<Option<element::Relation>,Error> {
     let q = (Included(id),Included(id));
-    for iv in self.relations.get_interval_overlaps(&q).iter() {
-      if let Some((offset,len)) = self.interval_offsets.get(&iv) {
+    for iv in self.table.relations.get_interval_overlaps(&q).iter() {
+      if let Some((offset,len)) = self.table.interval_offsets.get(&iv) {
         let blob = self.parser.read_blob(*offset,*len)?;
         let items = blob.decode_primitive()?.decode();
         for item in items {
@@ -125,11 +139,5 @@ impl<'a,F> Scan<'a,F> where F: Read+Seek {
       }
     }
     Ok(None)
-  }
-}
-
-impl<F> OsmPbfDenormalize<F> where F: Read+Seek {
-  pub fn scan<'a>(&'a mut self, start: u64, end: u64) -> Result<Scan<'a,F>,Error> {
-    Scan::scan(self, start, end)
   }
 }

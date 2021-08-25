@@ -1,6 +1,6 @@
 [package]
-name = "osmpbf-denormalize"
-version = "0.1.0"
+name = "osmpbf-parser"
+version = "1.0.0"
 edition = "2018"
 include = ["src/proto"]
 

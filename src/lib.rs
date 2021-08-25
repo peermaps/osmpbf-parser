@@ -11,12 +11,12 @@ pub use scan::Scan;
 
 pub type Error = Box<dyn std::error::Error+Send+Sync+'static>;
 
-pub struct OsmPbfDenormalize<F: Read+Seek> {
+pub struct Parser<F: Read+Seek> {
   handle: Box<F>,
 }
 
-impl<F> OsmPbfDenormalize<F> where F: Read+Seek {
-  pub fn open(handle: Box<F>) -> Self {
+impl<F> Parser<F> where F: Read+Seek {
+  pub fn new(handle: Box<F>) -> Self {
     Self { handle }
   }
   pub fn read_fileblock(&mut self, offset: u64) -> Result<(u64,BlobHeader,Blob),Error> {
