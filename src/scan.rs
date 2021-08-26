@@ -14,7 +14,9 @@ pub struct ScanTable {
   nodes: IntervalTree<i64>,
   ways: IntervalTree<i64>,
   relations: IntervalTree<i64>,
-  interval_offsets: HashMap<(Bound<i64>,Bound<i64>),(u64,usize)>,
+  node_interval_offsets: HashMap<(Bound<i64>,Bound<i64>),(u64,usize)>,
+  way_interval_offsets: HashMap<(Bound<i64>,Bound<i64>),(u64,usize)>,
+  relation_interval_offsets: HashMap<(Bound<i64>,Bound<i64>),(u64,usize)>,
 }
 impl Default for ScanTable {
   fn default() -> Self {
@@ -22,9 +24,17 @@ impl Default for ScanTable {
       nodes: IntervalTree::default(),
       ways: IntervalTree::default(),
       relations: IntervalTree::default(),
-      interval_offsets: HashMap::new(),
+      node_interval_offsets: HashMap::new(),
+      way_interval_offsets: HashMap::new(),
+      relation_interval_offsets: HashMap::new(),
     }
   }
+}
+
+pub trait ScanCache {
+  fn get_node(&mut self) -> element::Node;
+  fn get_way(&mut self) -> element::Way;
+  fn get_relation(&mut self) -> element::Relation;
 }
 
 impl<F> Scan<F> where F: Read+Seek {
@@ -69,15 +79,17 @@ impl<F> Scan<F> where F: Read+Seek {
       }
       if !items.is_empty() {
         let iv = (Included(min_id),Included(max_id));
-        self.table.interval_offsets.insert(iv.clone(), (blob_offset,blob_len));
         match etype {
           element::MemberType::Node => {
+            self.table.node_interval_offsets.insert(iv.clone(), (blob_offset,blob_len));
             self.table.nodes.insert(iv);
           },
           element::MemberType::Way => {
+            self.table.way_interval_offsets.insert(iv.clone(), (blob_offset,blob_len));
             self.table.ways.insert(iv);
           },
           element::MemberType::Relation => {
+            self.table.relation_interval_offsets.insert(iv.clone(), (blob_offset,blob_len));
             self.table.relations.insert(iv);
           },
         }
@@ -86,55 +98,73 @@ impl<F> Scan<F> where F: Read+Seek {
     }
     Ok(())
   }
-  pub fn get_node(&mut self, id: i64) -> Result<Option<element::Node>,Error> {
+  pub fn get_node_blob_offsets(&mut self, id: i64) -> Vec<(u64,usize)> {
     let q = (Included(id),Included(id));
-    for iv in self.table.nodes.get_interval_overlaps(&q).iter() {
-      if let Some((offset,len)) = self.table.interval_offsets.get(&iv) {
-        let blob = self.parser.read_blob(*offset,*len)?;
-        let items = blob.decode_primitive()?.decode();
-        for item in items {
-          match item {
-            Element::Node(node) => {
-              if node.id == id { return Ok(Some(node)) }
-            },
-            _ => { break }
-          }
+    self.table.nodes.get_interval_overlaps(&q).iter()
+      .map(|iv| self.table.node_interval_offsets.get(iv))
+      .filter(|o_pair| o_pair.is_some())
+      .map(|o_pair| o_pair.unwrap())
+      .cloned()
+      .collect()
+  }
+  pub fn get_node(&mut self, id: i64) -> Result<Option<element::Node>,Error> {
+    for (offset,len) in self.get_node_blob_offsets(id) {
+      let blob = self.parser.read_blob(offset,len)?;
+      let items = blob.decode_primitive()?.decode();
+      for item in items {
+        match item {
+          Element::Node(node) => {
+            if node.id == id { return Ok(Some(node)) }
+          },
+          _ => { break }
         }
       }
     }
     Ok(None)
+  }
+  pub fn get_way_blob_offsets(&mut self, id: i64) -> Vec<(u64,usize)> {
+    let q = (Included(id),Included(id));
+    self.table.ways.get_interval_overlaps(&q).iter()
+      .map(|iv| self.table.way_interval_offsets.get(iv))
+      .filter(|o_pair| o_pair.is_some())
+      .map(|o_pair| o_pair.unwrap())
+      .cloned()
+      .collect()
   }
   pub fn get_way(&mut self, id: i64) -> Result<Option<element::Way>,Error> {
-    let q = (Included(id),Included(id));
-    for iv in self.table.ways.get_interval_overlaps(&q).iter() {
-      if let Some((offset,len)) = self.table.interval_offsets.get(&iv) {
-        let blob = self.parser.read_blob(*offset,*len)?;
-        let items = blob.decode_primitive()?.decode();
-        for item in items {
-          match item {
-            Element::Way(way) => {
-              if way.id == id { return Ok(Some(way)) }
-            },
-            _ => { break }
-          }
+    for (offset,len) in self.get_way_blob_offsets(id) {
+      let blob = self.parser.read_blob(offset,len)?;
+      let items = blob.decode_primitive()?.decode();
+      for item in items {
+        match item {
+          Element::Way(way) => {
+            if way.id == id { return Ok(Some(way)) }
+          },
+          _ => { break }
         }
       }
     }
     Ok(None)
   }
-  pub fn get_relation(&mut self, id: i64) -> Result<Option<element::Relation>,Error> {
+  pub fn get_relation_blob_offsets(&mut self, id: i64) -> Vec<(u64,usize)> {
     let q = (Included(id),Included(id));
-    for iv in self.table.relations.get_interval_overlaps(&q).iter() {
-      if let Some((offset,len)) = self.table.interval_offsets.get(&iv) {
-        let blob = self.parser.read_blob(*offset,*len)?;
-        let items = blob.decode_primitive()?.decode();
-        for item in items {
-          match item {
-            Element::Relation(relation) => {
-              if relation.id == id { return Ok(Some(relation)) }
-            },
-            _ => { break }
-          }
+    self.table.relations.get_interval_overlaps(&q).iter()
+      .map(|iv| self.table.relation_interval_offsets.get(iv))
+      .filter(|o_pair| o_pair.is_some())
+      .map(|o_pair| o_pair.unwrap())
+      .cloned()
+      .collect()
+  }
+  pub fn get_relation(&mut self, id: i64) -> Result<Option<element::Relation>,Error> {
+    for (offset,len) in self.get_relation_blob_offsets(id) {
+      let blob = self.parser.read_blob(offset,len)?;
+      let items = blob.decode_primitive()?.decode();
+      for item in items {
+        match item {
+          Element::Relation(relation) => {
+            if relation.id == id { return Ok(Some(relation)) }
+          },
+          _ => { break }
         }
       }
     }
