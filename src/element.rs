@@ -1,13 +1,13 @@
 pub type Tags = Vec<(String,String)>;
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,PartialEq)]
 pub enum Element {
   Node(Node),
   Way(Way),
   Relation(Relation),
 }
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,PartialEq)]
 pub struct Info {
   pub version: i32,
   pub timestamp: Option<i64>,
@@ -17,7 +17,7 @@ pub struct Info {
   pub visible: Option<bool>,
 }
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,PartialEq)]
 pub struct Node {
   pub id: i64,
   pub tags: Tags,
@@ -26,7 +26,7 @@ pub struct Node {
   pub lat: f64,
 }
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,PartialEq)]
 pub struct Way {
   pub id: i64,
   pub tags: Tags,
@@ -34,7 +34,7 @@ pub struct Way {
   pub refs: Vec<i64>,
 }
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,PartialEq)]
 pub struct Relation {
   pub id: i64,
   pub tags: Tags,
@@ -42,14 +42,14 @@ pub struct Relation {
   pub members: Vec<Member>,
 }
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,PartialEq)]
 pub struct Member {
   pub id: i64,
   pub role: String,
   pub member_type: MemberType,
 }
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,PartialEq)]
 pub enum MemberType {
   Node,
   Way,

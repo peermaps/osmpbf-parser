@@ -7,7 +7,7 @@ mod decode;
 pub mod element;
 pub use element::{Element,Info,Node,Way,Relation,Member,MemberType};
 mod scan;
-pub use scan::Scan;
+pub use scan::{Scan,ScanTable};
 
 pub type Error = Box<dyn std::error::Error+Send+Sync+'static>;
 
@@ -27,13 +27,11 @@ impl<F> Parser<F> where F: Read+Seek {
   pub fn read_blob_header(&mut self, offset: u64) -> Result<(u64,BlobHeader),Error> {
     let mut len_buf = [0,0,0,0];
     self.handle.seek(SeekFrom::Start(offset))?;
-    let n = self.handle.read(&mut len_buf)?;
-    if n != 4 { panic!["{} != 4", n] }
+    self.handle.read_exact(&mut len_buf)?;
     let len = u32::from_be_bytes(len_buf) as usize;
     self.handle.seek(SeekFrom::Start(offset+4))?;
     let mut buf = vec![0u8;len];
-    let n = self.handle.read(&mut buf)?;
-    if n != len { panic!["not enough bytes read. expected {}, got {}", len, n] }
+    self.handle.read_exact(&mut buf)?;
     let mut reader = Reader::from_bytes(buf);
     let blob_header = reader.read(BlobHeader::from_reader)?;
     Ok(((len+4) as u64, blob_header))
@@ -41,8 +39,7 @@ impl<F> Parser<F> where F: Read+Seek {
   pub fn read_blob(&mut self, offset: u64, len: usize) -> Result<Blob,Error> {
     self.handle.seek(SeekFrom::Start(offset))?;
     let mut buf = vec![0u8;len];
-    let n = self.handle.read(&mut buf)?;
-    if n != len { panic!["not enough bytes read. expected {}, got {}", len, n] }
+    self.handle.read_exact(&mut buf)?;
     let mut reader = Reader::from_bytes(buf);
     let blob = reader.read(Blob::from_reader)?;
     Ok(blob)
