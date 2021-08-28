@@ -11,12 +11,12 @@ pub struct Scan<F: Read+Seek> {
 
 #[derive(Debug,Clone)]
 pub struct ScanTable {
-  nodes: IntervalTree<i64>,
-  ways: IntervalTree<i64>,
-  relations: IntervalTree<i64>,
-  node_interval_offsets: HashMap<(Bound<i64>,Bound<i64>),(u64,usize,usize)>,
-  way_interval_offsets: HashMap<(Bound<i64>,Bound<i64>),(u64,usize,usize)>,
-  relation_interval_offsets: HashMap<(Bound<i64>,Bound<i64>),(u64,usize,usize)>,
+  pub nodes: IntervalTree<i64>,
+  pub ways: IntervalTree<i64>,
+  pub relations: IntervalTree<i64>,
+  pub node_interval_offsets: HashMap<(Bound<i64>,Bound<i64>),(u64,usize,usize)>,
+  pub way_interval_offsets: HashMap<(Bound<i64>,Bound<i64>),(u64,usize,usize)>,
+  pub relation_interval_offsets: HashMap<(Bound<i64>,Bound<i64>),(u64,usize,usize)>,
 }
 impl Default for ScanTable {
   fn default() -> Self {
