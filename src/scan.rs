@@ -32,6 +32,20 @@ impl Default for ScanTable {
 }
 
 impl ScanTable {
+  pub fn extend(&mut self, other: &ScanTable) {
+    for range in other.nodes.iter() {
+      self.nodes.insert(range.clone());
+    }
+    for range in other.ways.iter() {
+      self.ways.insert(range.clone());
+    }
+    for range in other.relations.iter() {
+      self.relations.insert(range.clone());
+    }
+    self.node_interval_offsets.extend(other.node_interval_offsets.iter());
+    self.way_interval_offsets.extend(other.way_interval_offsets.iter());
+    self.relation_interval_offsets.extend(other.relation_interval_offsets.iter());
+  }
   pub fn get_node_blob_offsets(&self) -> impl Iterator<Item=(u64,usize,usize)>+'_ {
     self.node_interval_offsets.values().cloned()
   }
