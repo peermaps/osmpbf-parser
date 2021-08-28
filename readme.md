@@ -1,6 +1,6 @@
 # osmpbf-parser
 
-parse open street map protobuf files and scan for records
+parse open street map protobuf files and scan for records with explicit file offsets
 
 This crate differs from [osmpbf][] mainly in that you get explicit u64 file offsets for jumping and
 scanning and can bring your own concurrency strategy by creating many file handles and parser
@@ -12,7 +12,7 @@ This example loops over all the blobs in an osmpbf file and prints diagnostic in
 element type (node, way, or relation), the file offset and byte length of each blob, the number of
 items, and the range of ids.
 
-```rust
+```rust,no_run
 use std::fs::File;
 use osmpbf_parser::{Parser,Element};
 
@@ -57,4 +57,6 @@ fn main() -> Result<(),Error> {
   Ok(())
 }
 ```
+
+There are more explicit routines to read the file block, blob header, and blob without decoding.
 

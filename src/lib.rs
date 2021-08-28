@@ -1,3 +1,4 @@
+#![doc=include_str!("../readme.md")]
 use quick_protobuf::{MessageRead,Reader};
 use std::io::{Read,Seek,SeekFrom};
 

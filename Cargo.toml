@@ -1,7 +1,7 @@
 [package]
 name = "osmpbf-parser"
 version = "1.0.0"
-description = "parse osm protobuf files and scan for records"
+description = "parse osm protobuf files and scan for records with explicit file offsets"
 edition = "2018"
 include = ["src/proto"]
 
