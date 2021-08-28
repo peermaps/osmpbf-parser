@@ -21,10 +21,9 @@ impl Blob {
     Ok(primitive_block)
   }
   pub fn get_data(&self) -> Result<Vec<u8>,Error> {
-    //if let Some(data) = &self.raw {
-    //  Reader::from_bytes(data.clone())
-    //} else if let Some(input) = &self.zlib_data {
-    if let Some(input) = &self.zlib_data {
+    if let Some(data) = &self.raw {
+      Ok(data.clone())
+    } else if let Some(input) = &self.zlib_data {
       let mut z = ZlibDecoder::new(&input[..]);
       let mut data = vec![];
       z.read_to_end(&mut data)?;
