@@ -3,7 +3,11 @@ name = "osmpbf-parser"
 version = "1.0.0"
 description = "parse osm protobuf files and scan for records with explicit file offsets"
 edition = "2018"
-include = ["src/proto"]
+license = "BSD-3-Clause"
+readme = "readme.md"
+repository = "https://github.com/peermaps/osmpbf-parser"
+homepage = "https://github.com/peermaps/osmpbf-parser"
+include = ["src/","readme.md"]
 
 [dependencies]
 flate2 = "1.0.20"
