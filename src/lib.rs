@@ -9,6 +9,7 @@ pub mod element;
 pub use element::{Element,Info,Node,Way,Relation,Member,MemberType};
 mod scan;
 pub use scan::{Scan,ScanTable};
+mod scan_bytes;
 
 pub type Error = Box<dyn std::error::Error+Send+Sync+'static>;
 

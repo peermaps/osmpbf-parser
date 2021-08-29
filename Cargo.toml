@@ -10,6 +10,7 @@ homepage = "https://github.com/peermaps/osmpbf-parser"
 include = ["src/","readme.md"]
 
 [dependencies]
+desert = "2.0.0"
 flate2 = "1.0.20"
 quick-protobuf = "0.8.0"
 unbounded-interval-tree = "0.2.3"
