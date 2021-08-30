@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use hashbrown::HashMap;
 use crate::{Parser,element,Element,Error};
 use unbounded_interval_tree::IntervalTree;
 use std::ops::{Bound::Included,Bound};
