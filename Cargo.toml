@@ -1,6 +1,6 @@
 [package]
 name = "osmpbf-parser"
-version = "1.2.0"
+version = "1.3.0"
 description = "parse osm protobuf files and scan for records with explicit file offsets"
 edition = "2018"
 license = "BSD-3-Clause"
